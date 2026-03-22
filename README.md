@@ -34,8 +34,8 @@ English (Coming Soon) | [中文](README.md)
 
 1. **克隆仓库**
    ```bash
-   git clone https://github.com/DoubleL1ng/Words-Bin.git Words-Bin
-   cd Words-Bin
+   git clone https://github.com/DoubleL1ng/Words-Bin.git Silo
+   cd Silo
    ```
 
 2. **使用 Qt Creator 打开项目**
@@ -51,7 +51,7 @@ English (Coming Soon) | [中文](README.md)
 
 4. **运行**
    - Debug 模式：点击 Qt Creator 的 `Run` 按钮
-   - 直接运行可执行文件：`build/.../Words-Bin.exe`
+   - 直接运行可执行文件：`build/.../Silo.exe`
 
 ## 使用指南
 
@@ -84,7 +84,7 @@ English (Coming Soon) | [中文](README.md)
 ## 项目结构
 
 ```
-Words-Bin/
+Silo/
 ├── main.cpp                 # 应用入口
 ├── MainWindow.h/.cpp        # 主窗口和侧边栏逻辑
 ├── CaptureTool.h/.cpp       # 截图选择和渲染
@@ -122,7 +122,7 @@ Words-Bin/
 ### 构建注意事项
 
 - **Release vs Debug** — 推荐日常使用 Release 版本；开发调试使用 Debug 版本
-- **链接器锁** — Release 编译时若 `Words-Bin.exe` 正在运行，需先关闭（使用 `Stop-Process -Name Words-Bin` 命令）
+- **链接器锁** — Release 编译时若 `Silo.exe` 正在运行，需先关闭（使用 `Stop-Process -Name Silo` 命令）
 - **DPI 适配** — 代码中已处理 2K/4K 高分屏缩放
 
 ## 版本历史

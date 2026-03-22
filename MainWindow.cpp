@@ -9,12 +9,15 @@
 #include <QCryptographicHash>
 #include <QMimeData>
 #include <QDateTime>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QDir>
 #include <QDesktopServices>
 #include <QEasingCurve>
 #include <QByteArrayView>
 #include <QFile>
 #include <QFileInfo>
+#include <QFontMetrics>
 #include <QGraphicsDropShadowEffect>
 #include <QHBoxLayout>
 #include <QMessageBox>
@@ -30,6 +33,15 @@
 
 namespace {
 constexpr qint64 kClipboardDuplicateWindowMs = 500;
+constexpr int kSidebarVerticalMargin = 10;
+constexpr int kSidebarPreferredTopOffset = 50;
+
+int sidebarExpandedTop(const QRect &screenGeometry, int panelHeight)
+{
+    const int minTop = screenGeometry.top() + kSidebarVerticalMargin;
+    const int maxTop = screenGeometry.bottom() - panelHeight + 1 - kSidebarVerticalMargin;
+    return qBound(minTop, screenGeometry.top() + kSidebarPreferredTopOffset, maxTop);
+}
 
 QRect resolveAvailableGeometry(const QWidget *widget)
 {
@@ -171,7 +183,7 @@ bool savePixmapToConfiguredPath(const QPixmap &pixmap, QString *savedPath, QStri
 
     const QString timestamp =
         QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_HHmmss_zzz"));
-    const QString baseName = QStringLiteral("Words-Bin_%1").arg(timestamp);
+    const QString baseName = QStringLiteral("Silo_%1").arg(timestamp);
 
     QString filePath = dir.filePath(QStringLiteral("%1.%2").arg(baseName, extension));
     int suffix = 1;
@@ -266,9 +278,7 @@ MainWindow::MainWindow(QWidget *parent)
     if (screenGeometry.isValid()) {
         const int sidebarHeight = qMax(320, screenGeometry.height() - 100);
         const int x = screenGeometry.right() - rightMargin - normalWidth + 1;
-        const int y = qBound(screenGeometry.top() + 10,
-                             screenGeometry.top() + 50,
-                             screenGeometry.bottom() - sidebarHeight + 1 - 10);
+        const int y = sidebarExpandedTop(screenGeometry, sidebarHeight);
         setGeometry(x, y, normalWidth, sidebarHeight);
     }
 
@@ -592,35 +602,48 @@ void MainWindow::onClipboardChanged()
 
 void MainWindow::addClipboardItem(const QVariant &data)
 {
+    constexpr int kTextPreviewChars = 180;
+    const int viewportWidth =
+        (historyList && historyList->viewport()) ? historyList->viewport()->width() : (normalWidth - 24);
+    const int itemWidth = qMax(160, viewportWidth - 4);
+
     QListWidgetItem *item = new QListWidgetItem();
     item->setData(Qt::UserRole, data); 
     historyList->insertItem(0, item);
 
-    QWidget *widget = new QWidget();
-    widget->setStyleSheet("background: transparent;"); 
+    QWidget *widget = new QWidget(historyList);
+    widget->setObjectName("historyItemWidget");
     QVBoxLayout *layout = new QVBoxLayout(widget);
     layout->setContentsMargins(8, 8, 8, 8);
     layout->setSpacing(6);
 
-    QString timeStr = QDateTime::currentDateTime().toString("HH:mm:ss");
+    QString timeStr = QDateTime::currentDateTime().toString("HH:mm");
     QLabel *timeLabel = new QLabel(timeStr);
     timeLabel->setObjectName("historyTimeLabel");
     timeLabel->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+    timeLabel->setAlignment(Qt::AlignCenter);
     layout->addWidget(timeLabel);
 
     if (data.typeId() == QMetaType::QPixmap || data.typeId() == QMetaType::Type::QPixmap) {
+        layout->setContentsMargins(3, 3, 3, 3);
+        layout->setSpacing(2);
+
         QPixmap pix = data.value<QPixmap>();
         QLabel *imgLabel = new QLabel();
-        imgLabel->setPixmap(pix.scaled(200, 120, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        imgLabel->setAlignment(Qt::AlignCenter);
+        const int previewMaxWidth = qMax(120, itemWidth - 10);
+        const int previewMaxHeight = 260;
+        const QPixmap preview =
+            pix.scaled(previewMaxWidth, previewMaxHeight, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+        imgLabel->setPixmap(preview);
         layout->addWidget(imgLabel);
-        item->setSizeHint(QSize(normalWidth - 40, 160)); 
     } else {
         QString text = data.toString();
         QLabel *textLabel = new QLabel(text.left(40).replace('\n', " ") + (text.length() > 40 ? "..." : ""));
         textLabel->setObjectName("historyTextLabel");
         layout->addWidget(textLabel);
-        item->setSizeHint(QSize(normalWidth - 40, 70)); 
     }
+    item->setSizeHint(QSize(itemWidth, qMax(72, widget->sizeHint().height() + 2)));
     historyList->setItemWidget(item, widget);
     enforceHistoryLimit();
 }
@@ -662,6 +685,61 @@ void MainWindow::leaveEvent(QEvent *event)
     QMainWindow::leaveEvent(event);
 }
 
+void MainWindow::mousePressEvent(QMouseEvent *event)
+{
+    if (event && event->button() == Qt::LeftButton && dockDragEnabled && isDocked &&
+        dockTriggerRect().contains(event->pos())) {
+        dockDragging = true;
+        dockDragOffsetY = event->pos().y();
+
+        if (hoverRevealTimer) {
+            hoverRevealTimer->stop();
+        }
+        if (leaveDockTimer) {
+            leaveDockTimer->stop();
+        }
+
+        event->accept();
+        return;
+    }
+
+    QMainWindow::mousePressEvent(event);
+}
+
+void MainWindow::mouseMoveEvent(QMouseEvent *event)
+{
+    if (dockDragging && event) {
+        const QRect screenGeometry = resolveAvailableGeometry(this);
+        if (screenGeometry.isValid()) {
+            QRect rect = geometry();
+            rect.setX(screenGeometry.right() - rightMargin - rect.width() + 1);
+
+            const int minTop = screenGeometry.top() + kSidebarVerticalMargin;
+            const int maxTop = screenGeometry.bottom() - rect.height() + 1 - kSidebarVerticalMargin;
+            const int targetTop = event->globalPosition().toPoint().y() - dockDragOffsetY;
+            rect.moveTop(qBound(minTop, targetTop, maxTop));
+            setGeometry(rect);
+            dockStripTop = rect.top();
+        }
+
+        event->accept();
+        return;
+    }
+
+    QMainWindow::mouseMoveEvent(event);
+}
+
+void MainWindow::mouseReleaseEvent(QMouseEvent *event)
+{
+    if (dockDragging && event && event->button() == Qt::LeftButton) {
+        dockDragging = false;
+        event->accept();
+        return;
+    }
+
+    QMainWindow::mouseReleaseEvent(event);
+}
+
 void MainWindow::checkEdgeDocking() {
     if (sidebarPinned || trayRevealHoldActive || shouldSuppressSidebar() || !animation ||
         animation->state() == QAbstractAnimation::Running) {
@@ -676,6 +754,16 @@ void MainWindow::checkEdgeDocking() {
 
 void MainWindow::onSettingsUpdated()
 {
+    {
+        const QSettings settings = AppSettings::createSettings();
+        dockDragEnabled = settings.value(AppSettings::kDockStripAllowDrag,
+                                         AppSettings::kDefaultDockStripAllowDrag)
+                              .toBool();
+    }
+    if (!dockDragEnabled) {
+        dockDragging = false;
+    }
+
     enforceHistoryLimit();
     if (isDocked) {
         dockSidebar(false);
@@ -786,14 +874,31 @@ void MainWindow::onTogglePinned(bool checked)
 
 void MainWindow::onRequestExit()
 {
-    const QMessageBox::StandardButton result = QMessageBox::question(
-        this,
-        QStringLiteral("\u9000\u51fa\u786e\u8ba4"),
-        QStringLiteral("\u786e\u5b9a\u9000\u51fa Words-Bin \u5417\uff1f"),
-        QMessageBox::Yes | QMessageBox::No,
-        QMessageBox::No);
+    QDialog dialog(this);
+    dialog.setWindowTitle(QStringLiteral("\u9000\u51fa\u786e\u8ba4"));
+    dialog.setModal(true);
+    dialog.setMinimumWidth(320);
 
-    if (result == QMessageBox::Yes) {
+    auto *layout = new QVBoxLayout(&dialog);
+    layout->setContentsMargins(16, 14, 16, 12);
+    layout->setSpacing(10);
+
+    auto *label = new QLabel(QStringLiteral("\u786e\u8ba4\u9000\u51fa\u4fa7\u5f71\u5417\uff1f"), &dialog);
+    label->setWordWrap(true);
+    label->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    layout->addWidget(label);
+
+    auto *buttonBox = new QDialogButtonBox(&dialog);
+    auto *confirmButton = buttonBox->addButton(QStringLiteral("\u786e\u8ba4"), QDialogButtonBox::AcceptRole);
+    auto *cancelButton = buttonBox->addButton(QStringLiteral("\u53d6\u6d88"), QDialogButtonBox::RejectRole);
+    Q_UNUSED(confirmButton);
+    Q_UNUSED(cancelButton);
+    layout->addWidget(buttonBox);
+
+    connect(buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+    if (dialog.exec() == QDialog::Accepted) {
         QApplication::quit();
     }
 }
@@ -841,10 +946,7 @@ void MainWindow::revealSidebarWithHold()
     rect.setWidth(qMin(width(), maxWidth));
     rect.setHeight(expandedHeight);
     rect.setX(screenGeometry.right() - rightMargin - rect.width() + 1);
-
-    const int minTop = screenGeometry.top() + 10;
-    const int maxTop = screenGeometry.bottom() - rect.height() + 1 - 10;
-    rect.moveTop(qBound(minTop, rect.y(), maxTop));
+    rect.moveTop(sidebarExpandedTop(screenGeometry, rect.height()));
 
     if (animation) {
         animation->stop();
@@ -952,8 +1054,6 @@ void MainWindow::dockSidebar(bool animated)
         centralWidget->setStyleSheet(dockStripStyleSheet(palette, stripColor, safeStripRadius));
     }
 
-    const int centerY = geometry().center().y();
-
     setMinimumWidth(0);
     setMaximumWidth(QWIDGETSIZE_MAX);
     setMinimumHeight(0);
@@ -965,7 +1065,12 @@ void MainWindow::dockSidebar(bool animated)
     targetRect.setWidth(width());
     targetRect.setHeight(height());
     targetRect.setX(screenGeometry.right() - rightMargin - targetRect.width() + 1);
-    targetRect.moveTop(centerY - (targetRect.height() / 2));
+    int preferredTop = dockStripTop;
+    if (preferredTop < 0) {
+        const int centerY = geometry().center().y();
+        preferredTop = centerY - (targetRect.height() / 2);
+    }
+    targetRect.moveTop(preferredTop);
 
     const int minTop = screenGeometry.top() + 10;
     const int maxTop = screenGeometry.bottom() - targetRect.height() + 1 - 10;
@@ -975,6 +1080,7 @@ void MainWindow::dockSidebar(bool animated)
         animation->stop();
     }
     setGeometry(targetRect);
+    dockStripTop = targetRect.top();
     isDocked = true;
     setDockContentVisible(false);
     if (centralWidget && centralWidget->graphicsEffect()) {
@@ -999,8 +1105,6 @@ void MainWindow::expandSidebar(bool force)
         return;
     }
 
-    const int centerY = geometry().center().y();
-
     setMinimumWidth(0);
     setMaximumWidth(QWIDGETSIZE_MAX);
     setMinimumHeight(0);
@@ -1013,11 +1117,7 @@ void MainWindow::expandSidebar(bool force)
     rect.setWidth(width());
     rect.setHeight(expandedHeight);
     rect.setX(screenGeometry.right() - rightMargin - rect.width() + 1);
-    rect.moveTop(centerY - (rect.height() / 2));
-
-    const int minTop = screenGeometry.top() + 10;
-    const int maxTop = screenGeometry.bottom() - rect.height() + 1 - 10;
-    rect.moveTop(qBound(minTop, rect.y(), maxTop));
+    rect.moveTop(sidebarExpandedTop(screenGeometry, rect.height()));
 
     clearMask();
     if (animation) {

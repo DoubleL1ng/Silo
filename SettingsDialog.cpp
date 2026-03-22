@@ -22,7 +22,8 @@
 namespace {
 #ifdef Q_OS_WIN
 constexpr auto kAutoStartRegPath = "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
-constexpr auto kAutoStartValueName = "Words-Bin";
+constexpr auto kAutoStartValueName = "Silo";
+constexpr auto kLegacyAutoStartValueNameWordsBin = "Words-Bin";
 constexpr auto kLegacyAutoStartValueName = "SnipLite";
 #endif
 } // namespace
@@ -318,6 +319,7 @@ void SettingsDialog::loadCurrentSettings()
     QSettings bootSettings(QString::fromLatin1(kAutoStartRegPath), QSettings::NativeFormat);
     autoStartCheck->setChecked(
         bootSettings.contains(QString::fromLatin1(kAutoStartValueName)) ||
+        bootSettings.contains(QString::fromLatin1(kLegacyAutoStartValueNameWordsBin)) ||
         bootSettings.contains(QString::fromLatin1(kLegacyAutoStartValueName)));
 #else
     autoStartCheck->setChecked(false);

@@ -7,10 +7,12 @@
 #include <QtGlobal>
 
 namespace AppSettings {
-inline const QString kLegacyOrganization = QStringLiteral("SnipLite");
-inline const QString kLegacyApplication = QStringLiteral("SnipLite");
-inline const QString kOrganization = QStringLiteral("Words-Bin");
-inline const QString kApplication = QStringLiteral("Words-Bin");
+inline const QString kLegacyOrganization = QStringLiteral("Words-Bin");
+inline const QString kLegacyApplication = QStringLiteral("Words-Bin");
+inline const QString kLegacyOrganizationSecondary = QStringLiteral("SnipLite");
+inline const QString kLegacyApplicationSecondary = QStringLiteral("SnipLite");
+inline const QString kOrganization = QStringLiteral("Silo");
+inline const QString kApplication = QStringLiteral("Silo");
 
 inline const QString kCaptureHotkey = QStringLiteral("shortcuts/capture");
 inline const QString kSavePath = QStringLiteral("savePath");
@@ -65,10 +67,20 @@ inline void migrateLegacySettingsIfNeeded()
     }
 
     QSettings legacySettings(kLegacyOrganization, kLegacyApplication);
-    const QStringList legacyKeys = legacySettings.allKeys();
-    for (const QString &key : legacyKeys) {
-        currentSettings.setValue(key, legacySettings.value(key));
+    QStringList legacyKeys = legacySettings.allKeys();
+
+    if (legacyKeys.isEmpty()) {
+        QSettings secondaryLegacySettings(kLegacyOrganizationSecondary, kLegacyApplicationSecondary);
+        legacyKeys = secondaryLegacySettings.allKeys();
+        for (const QString &key : legacyKeys) {
+            currentSettings.setValue(key, secondaryLegacySettings.value(key));
+        }
+    } else {
+        for (const QString &key : legacyKeys) {
+            currentSettings.setValue(key, legacySettings.value(key));
+        }
     }
+
     currentSettings.sync();
 }
 

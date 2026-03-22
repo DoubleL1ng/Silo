@@ -41,7 +41,7 @@ target_link_libraries(WordsBin PRIVATE
     dwmapi
 )
 
-set_target_properties(WordsBin PROPERTIES OUTPUT_NAME "Words-Bin")
+set_target_properties(WordsBin PROPERTIES OUTPUT_NAME "Silo")
 
 if(WIN32)
     set_target_properties(WordsBin PROPERTIES WIN32_EXECUTABLE TRUE)

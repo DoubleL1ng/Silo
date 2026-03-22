@@ -1,4 +1,4 @@
-# Words-Bin v0.1.0 Release Notes
+# Silo v0.1.0 Release Notes
 
 Date: 2026-03-16
 

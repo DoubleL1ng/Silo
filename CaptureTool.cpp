@@ -290,7 +290,7 @@ bool CaptureTool::savePixmapToConfiguredPath(const QPixmap &pixmap,
 
     const QString timestamp =
         QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_HHmmss_zzz"));
-    const QString baseName = QStringLiteral("Words-Bin_%1").arg(timestamp);
+    const QString baseName = QStringLiteral("Silo_%1").arg(timestamp);
 
     QString filePath =
         dir.filePath(QStringLiteral("%1.%2").arg(baseName, extension));

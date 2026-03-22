@@ -4,6 +4,7 @@
 #include <QTimer>
 #include <QPropertyAnimation>
 #include <QEnterEvent>
+#include <QMouseEvent>
 #include <QShowEvent>
 #include <QVBoxLayout>
 #include <QPushButton>
@@ -26,6 +27,9 @@ protected:
     void showEvent(QShowEvent *event) override;
     void enterEvent(QEnterEvent *event) override;
     void leaveEvent(QEvent *event) override;
+    void mousePressEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
 
 private slots:
     void checkEdgeDocking();
@@ -89,6 +93,10 @@ private:
     bool trayRevealHoldActive = false;
     bool startupHoldApplied = false;
     bool sidebarPinned = false;
+    bool dockDragEnabled = AppSettings::kDefaultDockStripAllowDrag;
+    bool dockDragging = false;
+    int dockDragOffsetY = 0;
+    int dockStripTop = -1;
     bool settingsDialogVisible = false;
     bool regionCaptureActive = false;
     bool regionCaptureShouldHideSidebar = false;
