@@ -34,7 +34,7 @@ English (Coming Soon) | [中文](README.md)
 
 1. **克隆仓库**
    ```bash
-   git clone https://github.com/DoubleL1ng/Words-Bin.git Silo
+   git clone https://github.com/DoubleL1ng/Silo.git Silo
    cd Silo
    ```
 
@@ -147,9 +147,9 @@ Silo/
 
 ## 反馈
 
-如有问题、建议或功能请求，欢迎在 [Issues](https://github.com/DoubleL1ng/Words-Bin/issues) 中提出。
+如有问题、建议或功能请求，欢迎在 [Issues](https://github.com/DoubleL1ng/Silo/issues) 中提出。
 
 ---
 
 **维护者** — DoubleL1ng  
-**项目链接** — https://github.com/DoubleL1ng/Words-Bin
+**项目链接** — https://github.com/DoubleL1ng/Silo
